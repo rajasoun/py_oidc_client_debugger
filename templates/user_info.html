@@ -1,10 +1,19 @@
 {% extends "layout.html" %}
-{% block body %}
-    <div>
-      User information: <br>
-      Name: {user_info["name"]} <br>
-      Email: {user_info["email"]} <br>    
-      Avatar <img src="{user_info.get('avatar_url')}"> <br>
-      <a href="/">Home</a>
-    </div>
+{% block top_nav %}
+    <div> {% include 'top_nav.html' %}</div>
 {% endblock %}
+{% block user_info %}
+<main class="w-100 bt b--black-10 bg-white">
+  <section class="bg-black-0125 w-100" data-th-each="entry : ${entries}">
+
+      <div class="pa4">
+              <p class="f3 w-100 mw8 center">Profile Info</p>
+                  eMail: {{email}}     <br>
+                  <div class="pa4"> 
+                    <a href="/">Home</a> <br>
+                  </div>
+      </div>
+  </section>
+</main>
+{% endblock %}
+

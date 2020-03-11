@@ -19,19 +19,6 @@ app = flask.Flask(__name__)
 
 
 ###########
-#FUNCTIONS#
-###########
-
-def get_user_info(user_info):
-    return f"""
-    User information: <br>
-    Name: {user_info["name"]} <br>
-    Email: {user_info["email"]} <br>    
-    Avatar <img src="{user_info.get('avatar_url')}"> <br>
-    <a href="/">Home</a>
-    """
-
-###########
 #  ERRORS #
 ###########
 
@@ -51,9 +38,6 @@ def internal_error(e):
 
 @app.route('/')
 def index():
-    #  return """
-    #  <a href="/login">Login</a>
-    #  """
     return render_template('index.html')
 
 @app.route("/login")
@@ -68,25 +52,23 @@ def login():
 
 @app.route("/callback")
 def callback():
-    print("--------------------------------------" + str(request))
-    simplelogin = OAuth2Session(client_id=CLIENT_ID)
-    print("-----" + str(simplelogin))
+    simplelogin = OAuth2Session(
+        CLIENT_ID, scope=SCOPES,redirect_uri=REDIRECT_URI
+    )
     simplelogin.fetch_token(
         TOKEN_URL, 
         include_client_id=True,
         client_secret=CLIENT_SECRET, 
         authorization_response=flask.request.url
     )
-    print("-----" + str(simplelogin))
     user_info = simplelogin.get(USERINFO_URL).json()
-    print("-----" + str(user_info))
-    return get_user_info(user_info)
-
+    return render_template('user_info.html',
+                           email=user_info["email"])
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 3000))
     app.secret_key = os.urandom(24)
-    # app.jinja_env.auto_reload = True
-    # app.config['TEMPLATES_AUTO_RELOAD'] = True
+    app.jinja_env.auto_reload = True
+    app.config['TEMPLATES_AUTO_RELOAD'] = True
     # app.run(host='0.0.0.0', port=port, debug=True, ssl_context='adhoc') # For testing locally and SSL is needed
     app.run(host='0.0.0.0', port=port, debug=True)
