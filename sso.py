@@ -1,89 +1,161 @@
 import os
-import flask
-from flask import render_template, request
+from pprint import pformat
+from time import time
+
+from flask import Flask, request, redirect, session, url_for, render_template
+from flask.json import jsonify
+import requests
 from requests_oauthlib import OAuth2Session
 
-CLIENT_ID = os.environ.get("CLIENT_ID")
-CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
-SCOPES = os.environ.get('SCOPES')
+import logging
+import sys
 
-AUTHORIZATION_BASE_URL = os.environ.get("AUTHORIZATION_BASE_URL")
-TOKEN_URL = os.environ.get("TOKEN_URL")
-USERINFO_URL = os.environ.get('USERINFO_URL')
-REDIRECT_URI = os.environ.get('REDIRECT_URI')
+log = logging.getLogger('sso')
+log.addHandler(logging.StreamHandler(sys.stdout))
+log.setLevel(logging.DEBUG)
 
-# This allows us to use a plain HTTP callback
-os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+client_id = os.environ.get("CLIENT_ID")
+client_secret = os.environ.get("CLIENT_SECRET")
+redirect_uri = os.environ.get('REDIRECT_URI')
 
-app = flask.Flask(__name__)
+# OAuth endpoints 
+authorization_base_url = os.environ.get("AUTHORIZATION_BASE_URL")
+token_url = os.environ.get("TOKEN_URL")
+user_info_url= os.environ.get("USERINFO_URL")
+refresh_url = os.environ.get("TOKEN_URL") # True for Google but not all providers.
+scope = os.environ.get('SCOPES')
 
-
-###########
-#FUNCTIONS#
-###########
-
-def get_user_info(user_info):
-    return f"""
-    User information: <br>
-    Name: {user_info["name"]} <br>
-    Email: {user_info["email"]} <br>    
-    Avatar <img src="{user_info.get('avatar_url')}"> <br>
-    <a href="/">Home</a>
-    """
-
-###########
-#  ERRORS #
-###########
-
-@app.errorhandler(404)
-def page_not_found(e):
-    print(e)
-    return render_template('404.html'), 404
-
-@app.errorhandler(500)
-def internal_error(e):
-    print(e)
-    return render_template('500.html'), 500
-    
-###########
-#  ROUTES #
-###########
+app = Flask(__name__)
 
 @app.route('/')
 def index():
-    #  return """
-    #  <a href="/login">Login</a>
-    #  """
     return render_template('index.html')
+
 
 @app.route("/login")
 def login():
-    simplelogin = OAuth2Session(
-        CLIENT_ID, scope=SCOPES,redirect_uri=REDIRECT_URI
-    )
-    authorization_url, _ = simplelogin.authorization_url(AUTHORIZATION_BASE_URL)
+    """Step 1: User Authorization.
 
-    return flask.redirect(authorization_url)
+    Redirect the user/resource owner to the OAuth provider (IDP)
+    using an URL with a few key OAuth parameters.
+    """
+    sso_login = OAuth2Session(client_id,scope=scope, redirect_uri=redirect_uri)
+    authorization_url, state = sso_login.authorization_url(authorization_base_url,
+        # offline for refresh token
+        # force to always make user click authorize
+        access_type="offline")
 
+    # State is used to prevent CSRF, keep this for later.
+    session["oauth_state"] = state
+    return redirect(authorization_url)
 
-@app.route("/callback")
+# Step 2: User authorization, this happens on the provider 
+# Browser gets redirected to redirect_url on successfull authorization
+
+@app.route("/callback", methods=["GET"])
 def callback():
-    print("--------------------------------------" + str(request))
-    simplelogin = OAuth2Session(client_id=CLIENT_ID)
-    print("-----" + str(simplelogin))
-    simplelogin.fetch_token(
-        TOKEN_URL, 
-        include_client_id=True,
-        client_secret=CLIENT_SECRET, 
-        authorization_response=flask.request.url
-    )
-    print("-----" + str(simplelogin))
-    user_info = simplelogin.get(USERINFO_URL).json()
-    print("-----" + str(user_info))
-    return get_user_info(user_info)
+    """ Step 3: Retrieving an access token.
 
+    The user has been redirected back from the provider to your registered
+    callback URL. With this redirection comes an authorization code included
+    in the redirect URL. We will use that to obtain an access token.
+    """
+
+    sso_login = OAuth2Session(client_id, redirect_uri=redirect_uri,
+                           state=session["oauth_state"])
+    token = sso_login.fetch_token(token_url, client_secret=client_secret,
+                               authorization_response=request.url)
+
+    # We use the session as a simple DB for this example.
+    session["oauth_token"] = token
+
+    return redirect(url_for('.menu'))
+
+
+@app.route("/menu", methods=["GET"])
+def menu():
+    """"""
+    return """
+    <h1>Congratulations, you have obtained an OAuth 2 token!</h1>
+    <h2>What would you like to do next?</h2>
+    <ul>
+        <li><a href="/profile"> Get account profile</a></li>
+        <li><a href="/automatic_refresh"> Implicitly refresh the token</a></li>
+        <li><a href="/manual_refresh"> Explicitly refresh the token</a></li>
+        <li><a href="/validate"> Validate the token</a></li>
+    </ul>
+
+    <pre>
+    %s
+    </pre>
+    """ % pformat(session['oauth_token'], indent=4)
+
+
+@app.route("/profile", methods=["GET"])
+def profile():
+    """Fetching a protected resource using an OAuth 2 token.
+    """
+    sso_login = OAuth2Session(client_id, token=session['oauth_token'])
+    return jsonify(sso_login.get(user_info_url).json())
+
+
+@app.route("/automatic_refresh", methods=["GET"])
+def automatic_refresh():
+    """Refreshing an OAuth 2 token using a refresh token.
+    """
+    token = session['oauth_token']
+
+    # We force an expiration by setting expired at in the past.
+    # This will trigger an automatic refresh next time we interact with IDP
+    token['expires_at'] = time() - 10
+
+    extra = {
+        'client_id': client_id,
+        'client_secret': client_secret,
+    }
+
+    def token_updater(token):
+        session['oauth_token'] = token
+
+    sso_login = OAuth2Session(client_id,
+                           token=token,
+                           auto_refresh_kwargs=extra,
+                           auto_refresh_url=refresh_url,
+                           token_updater=token_updater)
+
+    # Trigger the automatic refresh
+    jsonify(sso_login.get(user_info_url).json())
+    return jsonify(session['oauth_token'])
+
+
+@app.route("/manual_refresh", methods=["GET"])
+def manual_refresh():
+    """Refreshing an OAuth 2 token using a refresh token.
+    """
+    token = session['oauth_token']
+
+    extra = {
+        'client_id': client_id,
+        'client_secret': client_secret,
+    }
+
+    sso_login = OAuth2Session(client_id, token=token)
+    session['oauth_token'] = sso_login.refresh_token(refresh_url, **extra)
+    return jsonify(session['oauth_token'])
+
+@app.route("/validate", methods=["GET"])
+def validate():
+    """Validate a token with the OAuth provider.
+    """
+    token = session['oauth_token']
+    validate_url = (user_info_url+'?access_token=%s' % token['access_token'])
+
+    # No OAuth2Session is needed, just a plain GET request
+    return jsonify(requests.get(validate_url).json())
 
 if __name__ == "__main__":
+    # This allows us to use a plain HTTP callback
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = "1"
     port = int(os.environ.get("PORT", 3000))
     app.secret_key = os.urandom(24)
     # app.jinja_env.auto_reload = True
