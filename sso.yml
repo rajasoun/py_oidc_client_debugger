@@ -1,0 +1,19 @@
+version: '3.7'
+
+services:
+
+  sso:
+    container_name: sso
+    build: 
+      context: .
+      dockerfile: docker/sso/Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - "${PWD}:/app"
+      - ./logs:/var/log
+    networks:
+      - sso
+
+networks:
+  sso:

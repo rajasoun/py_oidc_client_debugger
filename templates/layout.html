@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Dashboard</title>
+    <meta content="Aggregator App - HTD BizApps RI." name="description">
+    <meta charset="utf-8">
+    <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <link href="https://unpkg.com/tachyons/css/tachyons.min.css" rel="stylesheet">
+
+    <style>
+          .blue { color: #0074D9; }
+          .bg-blue { background-color: #0074D9; }
+          .carbon-poweredby { width: 100%; font-size: 12px; float: left; }
+          .carbon-wrap { float: left; width: 100%; box-sizing: border-box; }
+          .carbon-img  { float: left; width: 50%;  box-sizing: border-box; }
+          .carbon-text  { float: left; width: 50%; padding-left: 16px; box-sizing: border-box; font-size: 12px; }
+          #carbonads a:link { text-decoration: none!important; color: #222!important; }
+    </style>
+</head>
+
+<div class="container text-center"> 
+    {% block top_nav %}{% endblock %}
+</div>
+
+<body class="w-100 sans-serif">   
+    <script>
+          var timeagoInstance = timeago();
+          var nodes = document.querySelectorAll('time');
+          timeagoInstance.render(nodes, 'en_US');
+    </script>
+</body>
+</html>

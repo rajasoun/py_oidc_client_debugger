@@ -1,0 +1,10 @@
+{% extends "layout.html" %}
+{% block body %}
+    <div>
+      User information: <br>
+      Name: {user_info["name"]} <br>
+      Email: {user_info["email"]} <br>    
+      Avatar <img src="{user_info.get('avatar_url')}"> <br>
+      <a href="/">Home</a>
+    </div>
+{% endblock %}
