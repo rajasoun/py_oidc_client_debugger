@@ -53,7 +53,7 @@ def login():
 @app.route("/callback")
 def callback():
     simplelogin = OAuth2Session(
-        CLIENT_ID, scope=SCOPES,redirect_uri=REDIRECT_URI
+        CLIENT_ID, redirect_uri=REDIRECT_URI
     )
     simplelogin.fetch_token(
         TOKEN_URL, 
