@@ -46,7 +46,7 @@ def login():
         CLIENT_ID, scope=SCOPES,redirect_uri=REDIRECT_URI
     )
     authorization_url, _ = simplelogin.authorization_url(AUTHORIZATION_BASE_URL)
-
+    print("Redirect URL -------->" + authorization_url)
     return flask.redirect(authorization_url)
 
 
