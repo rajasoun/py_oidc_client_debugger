@@ -8,13 +8,13 @@ $ cp .env_template .env
 
 Populate values for
 
-CLIENT_ID=
-CLIENT_SECRET=
-SCOPES=email openid profile
-AUTHORIZATION_BASE_URL=
-TOKEN_URL=
-USERINFO_URL=
-REDIRECT_URI=
+* CLIENT_ID=
+* CLIENT_SECRET=
+* SCOPES=email openid profile
+* AUTHORIZATION_BASE_URL=
+* TOKEN_URL=
+* USERINFO_URL=
+* REDIRECT_URI=
 
 
 ```
